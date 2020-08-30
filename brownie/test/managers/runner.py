@@ -46,11 +46,15 @@ def revert_deprecation(revert_msg=None):
 
 
 class RevertContextManager:
-    def __init__(self, revert_msg=None):
+    def __init__(self, revert_msg=None, optional_msg=None):
+        if revert_msg and optional_msg:
+            raise ValueError("Cannot use revert_msg and optional_msg together")
         self.revert_msg = revert_msg
+        self.optional_msg = optional_msg
         self.always_transact = CONFIG.argv["always_transact"]
 
-        if revert_msg is not None and revert_msg.startswith("dev:"):
+        msg = revert_msg or optional_msg
+        if msg is not None and msg.startswith("dev:"):
             # run calls as transactins when catching a dev revert string
             CONFIG.argv["always_transact"] = True
 
@@ -65,6 +69,9 @@ class RevertContextManager:
 
         if exc_type is not VirtualMachineError:
             raise
+
+        if self.optional_msg is not None and exc_value.revert_msg in (None, self.optional_msg):
+            return True
 
         if self.revert_msg is None or self.revert_msg == exc_value.revert_msg:
             return True
